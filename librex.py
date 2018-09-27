@@ -217,7 +217,7 @@ class ReplicaExchange:
             self.replica_s.append(replica)
         #
         if MPI_RANK == MPI_KING:
-            self.log = open(self.logfile, 'wt')
+            self.log = open(self.logfile, 'wt', buffering=0)
             
     def finalize(self):
         for replica in self.replica_s:
@@ -309,7 +309,7 @@ class ReplicaExchange:
                     chk_fn_s[ii[0]][ii[1]], chk_fn_s[jj[0]][jj[1]] = chk_fn_s[jj[0]][jj[1]], chk_fn_s[ii[0]][ii[1]]
                     wrt.append("REJECTED")
                 wrt.append("ACCEPTANCE %6.2f"%(float(accepted)/(i_iter+1)*100.0))
-                wrt.append("PROB  %6.2f"%crit)
+                wrt.append("PROB  %6.2f"%(crit*100.0))
                 wrt.append("TEMP  %6.1f %6.1f"%(temperature_i.value_in_unit(kelvin), temperature_j.value_in_unit(kelvin)))
                 wrt.append("ENERGY  %12.3f %12.3f <-> %12.3f %12.3f"%(energy_ii, energy_jj, energy_ij, energy_ji))
                 self.log.write(' '.join(wrt)+"\n")
