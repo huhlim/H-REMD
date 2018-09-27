@@ -11,7 +11,7 @@ from simtk.openmm.app import *
 from libcustom import construct_custom_restraint, read_custom_restraint
 from libmpi import MPI_KING, MPI_SIZE, MPI_RANK, MPI_COMM, distribute_trajectory
 
-DEBUG=True
+DEBUG=False
 
 class StateParameter:
     ''' This class can generate objects with different
