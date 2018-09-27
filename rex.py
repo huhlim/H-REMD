@@ -37,13 +37,12 @@ def main():
     runner = ReplicaExchange(prefix=arg.prefix, prefix_prev=arg.prefix_prev)
     runner.initialize(arg.input_pdb, arg.psf_fn[0], arg.boxsize, arg.state_s)
     runner.run(arg.n_step)
-    runner.finalize()
     #
     if MPI_RANK == MPI_KING:
         t_final = time.time()
         t_spend = t_final - t_init
         #
-        sys.stdout.write("ELAPSED TIME:     %8.2f SECONDS\n"%t_spend)
+        runner.log.write("ELAPSED TIME:     %8.2f SECONDS\n"%t_spend)
     else:
         t_spend = 0.0
 
@@ -51,6 +50,8 @@ def main():
     for replica in runner.replica_s:
         with open(replica.logfile, 'at') as fout:
             fout.write("ELAPSED TIME:     %8.2f SECONDS\n"%t_spend)
+
+    runner.finalize()
 
 if __name__=='__main__':
     main()

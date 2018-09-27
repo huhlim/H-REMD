@@ -17,12 +17,12 @@ class StateParameter:
         - restraitns
         - simulation temperature
     '''
-    def __init__(self, toppar, T=298.0):
+    def __init__(self, toppar, dt=0.002, T=298.0):
         self.ff = CharmmParameterSet(*toppar)
         self.dyntemp = T * kelvin
         #
         self.dynoutfrq = 25000  # 10 ps
-        self.dyntstep = 0.002 * picosecond
+        self.dyntstep = dt * picosecond
         self.langfbeta = 0.01 / picosecond
         #
         # system
@@ -38,7 +38,7 @@ class StateParameter:
 
     @classmethod
     def define_state(cls, psf_fn, boxsize, fn=None, \
-                            toppar=[], T=298.0, cons=[], custom=[]):
+                            toppar=[], dt=0.002, T=298.0, cons=[], custom=[]):
         dyntemp = T
         with open(fn) as fp:
             for line in fp:
@@ -48,6 +48,8 @@ class StateParameter:
                     toppar.extend(x[1:])
                 elif x[0] == 'dyntemp':
                     dyntemp = float(x[1])
+                elif x[0] == 'dyntstep' or x[0] == 'dt' or x[0] == 'time_step':
+                    dt = float(x[1])
                 elif x[0] == 'cons':
                     # ref_fn, force_const, flat_bottom
                     cons = [x[1]] + [float(xi) for xi in x[2:]]
@@ -55,7 +57,7 @@ class StateParameter:
                 elif x[0] == 'custom':
                     custom = [x[1], read_custom_restraint(x[2])]
 
-        state = cls(toppar, T=dyntemp)
+        state = cls(toppar, dt=dt, T=dyntemp)
         state.set_psf(psf_fn)
         state.set_box(boxsize)
         state.create_system()
@@ -191,6 +193,10 @@ class ReplicaExchange:
         self.replica_s = []
         self.replica_exchange_rate = 5000 # 10 ps
 
+    @property
+    def logfile(self):
+        return '%s.log'%self.prefix
+
     def initialize(self, init_str, psf_fn, boxsize, state_fn_s):
         if init_str.endswith("crd"):
             init = CharmmCrdFile(init_str)
@@ -209,10 +215,16 @@ class ReplicaExchange:
             replica.set_simulation(init.positions, gpu_id=gpu_id)
             #
             self.replica_s.append(replica)
+        #
+        if MPI_RANK == MPI_KING:
+            self.log = open(self.logfile, 'wt')
             
     def finalize(self):
         for replica in self.replica_s:
             replica.create_checkpoint()
+        #
+        if MPI_RANK == MPI_KING:
+            self.log.close()
 
     def run(self, n_step):
         self.n_step = n_step
@@ -289,16 +301,18 @@ class ReplicaExchange:
                 crit = min(1.0, np.exp(-delta))
                 #
                 wrt = []
-                wrt.append("SWAP %5d : %d %d"%(i_iter+1, swap_i, swap_j))
+                wrt.append("STEP %5d : %2d %2d"%(i_iter+1, swap_i, swap_j))
                 if np.random.random() < crit:   # swap accepted
                     accepted += 1
                     wrt.append("ACCEPTED")
                 else:                           # swap rejected
                     chk_fn_s[ii[0]][ii[1]], chk_fn_s[jj[0]][jj[1]] = chk_fn_s[jj[0]][jj[1]], chk_fn_s[ii[0]][ii[1]]
                     wrt.append("REJECTED")
-                wrt.append("%10.3E"%delta)
                 wrt.append("ACCEPTANCE %6.2f"%(float(accepted)/(i_iter+1)*100.0))
-                sys.stdout.write(' '.join(wrt)+"\n")
+                wrt.append("PROB  %6.2f"%crit)
+                wrt.append("TEMP  %6.1f %6.1f"%(temperature_i, temperature_j))
+                wrt.append("ENERGY  %12.3f %12.3f <-> %12.3f %12.3f"%(energy_ii, energy_jj, energy_ij, energy_ji))
+                self.log.write(' '.join(wrt)+"\n")
             else:
                 chk_fn_s = None
             #
