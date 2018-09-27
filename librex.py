@@ -259,7 +259,8 @@ class ReplicaExchange:
                         replica_index[before_swap[rank][index][0]] = (rank, index)
                 #
                 # select two replica indices to swap
-                swap_i, swap_j = np.random.choice(np.arange(len(replica_index)), 2, replace=False)
+                #swap_i, swap_j = np.random.choice(np.arange(len(replica_index)), 2, replace=False)
+                swap_i = np.random.randint(len(replica_index)-1) ; swap_j = swap_i+1
                 ii = replica_index[swap_i]  # rank, index
                 jj = replica_index[swap_j]  # rank, index
                 #
