@@ -11,6 +11,8 @@ from simtk.openmm.app import *
 from libcustom import construct_custom_restraint, read_custom_restraint
 from libmpi import MPI_KING, MPI_SIZE, MPI_RANK, MPI_COMM, distribute_trajectory
 
+DEBUG=True
+
 class StateParameter:
     ''' This class can generate objects with different
         - force field
@@ -21,7 +23,10 @@ class StateParameter:
         self.ff = CharmmParameterSet(*toppar)
         self.dyntemp = T * kelvin
         #
-        self.dynoutfrq = 25000  # 10 ps
+        if not DEBUG:
+            self.dynoutfrq = 25000  # 10 ps
+        else:
+            self.dynoutfrq = 2500  # 10 ps
         self.dyntstep = dt * picosecond
         self.langfbeta = 0.01 / picosecond
         #
@@ -163,6 +168,7 @@ class Replica:
     def create_checkpoint(self):
         with open(self.restout, 'wb') as fout:
             fout.write(self.simulation.context.createCheckpoint())
+
     @ property
     def home(self):
         return 'replica.%d'%self.replica_id
@@ -191,11 +197,18 @@ class ReplicaExchange:
         self.prefix_prev = prefix_prev
         #
         self.replica_s = []
-        self.replica_exchange_rate = 5000 # 10 ps
+        if not DEBUG:
+            self.replica_exchange_rate = 5000 # 10 ps
+        else:
+            self.replica_exchange_rate = 500 # 1 ps
+        self.traj_id_s = []
 
     @property
     def logfile(self):
         return '%s.log'%self.prefix
+    @property
+    def history_fn(self):
+        return '%s.history'%self.prefix
 
     def initialize(self, init_str, psf_fn, boxsize, state_fn_s):
         if init_str.endswith("crd"):
@@ -217,7 +230,11 @@ class ReplicaExchange:
             self.replica_s.append(replica)
         #
         if MPI_RANK == MPI_KING:
+            self.traj_id_s = range(len(state_fn_s))
+            self.history = open(self.history_fn, 'wt', buffering=0)
+            self.history.write("%5d  "%(0) + ' '.join(['%2d'%traj_id for traj_id in self.traj_id_s])+'\n')
             self.log = open(self.logfile, 'wt', buffering=0)
+
             
     def finalize(self):
         for replica in self.replica_s:
@@ -225,6 +242,7 @@ class ReplicaExchange:
         #
         if MPI_RANK == MPI_KING:
             self.log.close()
+            self.history.close()
 
     def run(self, n_step):
         self.n_step = n_step
@@ -306,14 +324,17 @@ class ReplicaExchange:
                 if np.random.random() < crit:   # swap accepted
                     accepted += 1
                     wrt.append("ACCEPTED")
+                    self.traj_id_s[swap_i], self.traj_id_s[swap_j] = self.traj_id_s[swap_j], self.traj_id_s[swap_i]
                 else:                           # swap rejected
-                    chk_fn_s[ii[0]][ii[1]], chk_fn_s[jj[0]][jj[1]] = chk_fn_s[jj[0]][jj[1]], chk_fn_s[ii[0]][ii[1]]
                     wrt.append("REJECTED")
+                    chk_fn_s[ii[0]][ii[1]], chk_fn_s[jj[0]][jj[1]] = chk_fn_s[jj[0]][jj[1]], chk_fn_s[ii[0]][ii[1]]
                 wrt.append("ACCEPTANCE %6.2f"%(float(accepted)/(i_iter+1)*100.0))
                 wrt.append("PROB  %6.2f"%(crit*100.0))
                 wrt.append("TEMP  %6.1f %6.1f"%(temperature_i.value_in_unit(kelvin), temperature_j.value_in_unit(kelvin)))
                 wrt.append("ENERGY  %12.3f %12.3f <-> %12.3f %12.3f"%(energy_ii, energy_jj, energy_ij, energy_ji))
                 self.log.write(' '.join(wrt)+"\n")
+                self.history.write("%5d  "%(i_iter+1) + ' '.join(['%2d'%traj_id for traj_id in self.traj_id_s])+'\n')
+                sys.stdout.write(' '.join(wrt)+"\n")
             else:
                 chk_fn_s = None
             #
