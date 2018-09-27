@@ -233,7 +233,7 @@ class ReplicaExchange:
             self.replica_s.append(replica)
         #
         if MPI_RANK == MPI_KING:
-            if self.prefix_prev is None:
+            if self.prefix_prev is None or not os.path.exists(self.history_fn_prev)::
                 self.traj_id_s = range(len(state_fn_s))
             else:
                 with open(self.history_fn_prev) as fp:
