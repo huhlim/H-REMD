@@ -11,7 +11,7 @@ from simtk.openmm.app import *
 from libcustom import construct_custom_restraint, read_custom_restraint
 from libmpi import MPI_KING, MPI_SIZE, MPI_RANK, MPI_COMM, distribute_trajectory
 
-DEBUG=False
+DEBUG=True
 
 class StateParameter:
     ''' This class can generate objects with different
@@ -209,6 +209,9 @@ class ReplicaExchange:
     @property
     def history_fn(self):
         return '%s.history'%self.prefix
+    @property
+    def history_fn_prev(self):
+        return '%s.history'%self.prefix_prev
 
     def initialize(self, init_str, psf_fn, boxsize, state_fn_s):
         if init_str.endswith("crd"):
@@ -230,7 +233,11 @@ class ReplicaExchange:
             self.replica_s.append(replica)
         #
         if MPI_RANK == MPI_KING:
-            self.traj_id_s = range(len(state_fn_s))
+            if self.prefix_prev is None:
+                self.traj_id_s = range(len(state_fn_s))
+            else:
+                with open(self.history_fn_prev) as fp:
+                    self.traj_id_s = [int(traj_id) for traj_id in fp.readlines()[-1].strip().split()[1:]]
             self.history = open(self.history_fn, 'wt', buffering=0)
             self.history.write("%5d  "%(0) + ' '.join(['%2d'%traj_id for traj_id in self.traj_id_s])+'\n')
             self.log = open(self.logfile, 'wt', buffering=0)
@@ -334,7 +341,7 @@ class ReplicaExchange:
                 wrt.append("ENERGY  %12.3f %12.3f <-> %12.3f %12.3f"%(energy_ii, energy_jj, energy_ij, energy_ji))
                 self.log.write(' '.join(wrt)+"\n")
                 self.history.write("%5d  "%(i_iter+1) + ' '.join(['%2d'%traj_id for traj_id in self.traj_id_s])+'\n')
-                sys.stdout.write(' '.join(wrt)+"\n")
+                #sys.stdout.write(' '.join(wrt)+"\n")
             else:
                 chk_fn_s = None
             #
