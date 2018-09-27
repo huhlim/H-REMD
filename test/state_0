@@ -1,0 +1,3 @@
+toppar  /home/huhlim/work/refine/casp13/ff/c36m/par_all36m_prot.prm /home/huhlim/work/refine/casp13/ff/c36m/top_all36_prot.rtf /home/huhlim/work/refine/casp13/ff/c36m/toppar_ions_won.str /home/huhlim/work/refine/casp13/ff/c36m/toppar_water_ions.str
+dyntemp 298
+cons    test.iniref.center.pdb  0.025   4.0
