@@ -24,9 +24,9 @@ class StateParameter:
         self.dyntemp = T * kelvin
         #
         if not DEBUG:
-            self.dynoutfrq = 25000  # 10 ps
+            self.dynoutfrq = int(50.0/dt) # 50 ps
         else:
-            self.dynoutfrq = 2500  # 10 ps
+            self.dynoutfrq = int(5.0/dt) # 50 ps
         self.dyntstep = dt * picosecond
         self.langfbeta = 0.01 / picosecond
         #
@@ -198,9 +198,9 @@ class ReplicaExchange:
         #
         self.replica_s = []
         if not DEBUG:
-            self.replica_exchange_rate = 5000 # 10 ps
+            self.replica_exchange_time = 10.0
         else:
-            self.replica_exchange_rate = 500 # 1 ps
+            self.replica_exchange_time = 1.0
         self.traj_id_s = []
 
     @property
@@ -231,6 +231,8 @@ class ReplicaExchange:
             replica.set_simulation(init.positions, gpu_id=gpu_id)
             #
             self.replica_s.append(replica)
+        self.replica_exchange_rate = int(self.replica_exchange_time/state.dyntstep.value_in_unit(picosecond))
+        print self.replica_exchange_rate
         #
         if MPI_RANK == MPI_KING:
             if self.prefix_prev is None or not os.path.exists(self.history_fn_prev):

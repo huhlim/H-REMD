@@ -17,22 +17,27 @@ def read_history(prefix_s):
             h = [line.strip().split()[1:] for line in fp.readlines()]
         history.extend(h[:-1])
     history = np.array(history, dtype=int)
-    return history
+    return history.T
 
 def main():
     arg = argparse.ArgumentParser(prog='rex.track_traj')
     arg.add_argument('-t', '--top', dest='top_fn', required=True)
     arg.add_argument('-p', '--prefix', dest='prefix_s', required=True, nargs='+')
     arg.add_argument('-o', '--output', dest='output_prefix', default='traj')
-    arg.add_argument('-s', '--skip', dest='skip', default=5)
+    arg.add_argument('--dcd_step', dest='dcd_step', default=25000)
+    arg.add_argument('--exchange_rate', dest='exchange_rate', default=5000)
     #
     if len(sys.argv) == 1:
         arg.print_help()
         return
     arg = arg.parse_args()
-
+    #
+    history_step = float(arg.dcd_step)/float(arg.exchange_rate)
+    #
     history = read_history(arg.prefix_s)
-    history = history[arg.skip-1::arg.skip].T
+    dcd_frames = history_step*(1+np.arange(int(history.shape[1]/history_step)))
+    dcd_frames = np.ceil(dcd_frames).astype(int)-1
+    history = history[:,dcd_frames]
 
     top=mdtraj.load(arg.top_fn)
     #

@@ -21,6 +21,8 @@ def main():
     arg.add_argument('-n', '--n_step', dest='n_step', type=int)
     arg.add_argument('--psf', dest='psf_fn', nargs='+', required=True)
     arg.add_argument('--box', dest='boxsize', nargs=3, type=float, required=True)
+    arg.add_argument('--exchange_rate', dest='replica_exchange_rate', type=int, default=None)
+
     #
     if len(sys.argv) == 1:
         arg.print_help()
@@ -35,6 +37,8 @@ def main():
         t_init = time.time()
     #
     runner = ReplicaExchange(prefix=arg.prefix, prefix_prev=arg.prefix_prev)
+    if arg.replica_exchange_rate is not None:
+        runner.replica_exchange_rate = arg.replica_exchange_rate
     runner.initialize(arg.input_pdb, arg.psf_fn[0], arg.boxsize, arg.state_s)
     runner.run(arg.n_step)
     #
